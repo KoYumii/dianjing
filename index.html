@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0f11">
+<title>点睛 · 修图</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#0f0f11; --panel:#151518; --raise:#1b1b20; --line:#26262d;
+    --text:#ededf0; --dim:#7c7c85; --dim2:#5a5a63; --white:#f2f2f5;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  #app{display:flex;flex-direction:column;height:100%}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+
+  /* ── 顶栏：只有 打开 / 状态 / 保存 ─────────────────────── */
+  header{display:flex;align-items:center;gap:14px;flex:0 0 auto;
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;background:var(--bg);z-index:5}
+  #btnOpen{font-size:14px;color:var(--dim);letter-spacing:.3px;padding:6px 0}
+  #btnOpen:active{color:var(--white)}
+  #status{flex:1 1 auto;min-width:0;text-align:center;font-size:11.5px;color:var(--dim2);
+    font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    letter-spacing:.2px}
+  .saveWrap{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  #expBtn{font-size:11px;color:var(--dim2);font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  #expBtn:active{color:var(--white)}
+  #btnSave{background:var(--white);color:#0b0b0d;font-size:13px;font-weight:600;
+    padding:7px 16px;border-radius:8px;letter-spacing:.5px}
+  #btnSave:disabled{opacity:.28}
+  #btnSave:active{transform:scale(.97)}
+
+  /* ── 画布：无边框铺满 ───────────────────────────────── */
+  main{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);overflow:hidden}
+  #gl{max-width:100%;max-height:100%;display:block;touch-action:none}
+  /* 给浮动工具条留出净空，照片不被压住 */
+  #stage.hasImg{padding-bottom:64px}
+  #stage.hasImg #gl{max-height:100%}
+  #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;text-align:center;padding:30px}
+  #empty h2{margin:0 0 2px;font-size:15px;font-weight:500;color:#b9b9c2;letter-spacing:.5px}
+  #empty p{margin:0 0 18px;font-size:12px;line-height:1.8;color:var(--dim2)}
+  #empty .emptyBtns{display:flex;gap:10px}
+  #btnEmptyOpen{border:1px solid #33333c;color:var(--text);padding:9px 20px;border-radius:8px;font-size:13px}
+  #btnSample{color:var(--dim);font-size:13px;padding:9px 10px}
+  #hint{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);
+    background:rgba(20,20,23,.9);color:#c8c8d0;font-size:11.5px;padding:5px 13px;border-radius:14px;
+    pointer-events:none;opacity:0;transition:opacity .25s;letter-spacing:.3px}
+  #hint.show{opacity:1}
+  #busy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:rgba(20,20,23,.92);padding:9px 16px;border-radius:10px;font-size:12px;
+    color:#c8c8d0;opacity:0;pointer-events:none;transition:opacity .2s}
+  #busy.show{opacity:1}
+
+  /* ── 画布底部浮动工具条 ─────────────────────────────── */
+  #toolbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:2px;padding:5px 6px;border-radius:13px;
+    background:rgba(26,26,30,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid #2b2b33;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:4}
+  #toolbar button{font-size:12.5px;color:#9a9aa4;padding:7px 12px;border-radius:9px;letter-spacing:.3px;
+    transition:color .14s,background .14s;white-space:nowrap}
+  #toolbar button:active{color:var(--white)}
+  #toolbar button.on{color:#0b0b0d;background:var(--white)}
+  #toolbar .sep{width:1px;height:16px;background:#303038;margin:0 3px}
+  #toolbar.hidden{display:none}
+
+  /* ── 底部面板 ─────────────────────────────────────── */
+  footer{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .groups{display:flex;gap:0;padding:0 10px;border-bottom:1px solid #1d1d22}
+  .group{padding:11px 14px;font-size:13px;color:var(--dim2);cursor:pointer;position:relative;letter-spacing:.4px}
+  .group.on{color:var(--white)}
+  .group.on::after{content:'';position:absolute;left:14px;right:14px;bottom:-1px;height:1.5px;background:var(--white)}
+  .panel{padding:12px 16px 14px;min-height:112px;max-height:31vh;overflow-y:auto;overscroll-behavior:contain}
+  .panel::-webkit-scrollbar{width:0}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:2px 22px}
+  .row{display:flex;align-items:center;gap:12px;padding:5px 0}
+  .row label{flex:0 0 44px;font-size:12px;color:#9a9aa4;letter-spacing:.2px}
+  .row input[type=range]{flex:1;min-width:60px;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;
+    background:#2a2a31;outline:none}
+  .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--white);box-shadow:0 1px 5px rgba(0,0,0,.55);cursor:grab}
+  .row input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:var(--white)}
+  .row .val{flex:0 0 26px;text-align:right;font-size:10.5px;color:#5f5f68;
+    font-variant-numeric:tabular-nums}
+  .sect{font-size:11.5px;color:var(--dim2);letter-spacing:1px;padding:12px 0 8px}
+  .soon{padding:22px 4px;color:var(--dim2);font-size:12.5px;line-height:1.9}
+
+  /* 滤镜网格 */
+  .lutgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;padding-bottom:4px}
+  .lutbtn{padding:10px 4px;font-size:12.5px;color:#c2c2ca;background:var(--raise);
+    border:1px solid #2a2a31;border-radius:9px;text-align:center;transition:border-color .14s,color .14s}
+  .lutbtn.on{border-color:var(--white);color:var(--white)}
+  .lutbtn small{display:block;color:var(--dim2);font-size:10px;margin-top:4px;letter-spacing:.2px}
+  .lutbtn.on small{color:#a8a8b2}
+
+  /* ── 预设弹层 ─────────────────────────────────────── */
+  .sheet{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;justify-content:flex-end;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .sheetIn{background:#141417;border-radius:18px 18px 0 0;border-top:1px solid #2b2b33;
+    padding:8px 0 calc(env(safe-area-inset-bottom) + 10px);max-height:76vh;overflow-y:auto;
+    animation:up .2s ease-out}
+  @keyframes up{from{transform:translateY(28px);opacity:.6}to{transform:none;opacity:1}}
+  .sheetTitle{font-size:11.5px;color:var(--dim2);letter-spacing:1px;padding:12px 20px 8px}
+  .pitem{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:13px 20px;font-size:14px;color:#d8d8de;cursor:pointer;letter-spacing:.2px}
+  .pitem:active{background:#1c1c21}
+  .pitem.on{color:var(--white)}
+  .pitem .dot{width:7px;height:7px;border-radius:50%;background:transparent;flex:0 0 auto;transition:background .14s}
+  .pitem.on .dot{background:var(--white)}
+  .pitem .sub{font-size:11.5px;color:#8a8a94;padding-left:12px}
+  .pitem.act{color:#9a9aa4}
+  .pitem.danger{color:#8d7a7a}
+  #presetBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 18px);
+    z-index:60;display:flex;gap:8px;align-items:center;padding:10px;background:#17171b;
+    border:1px solid #2b2b33;border-radius:13px;box-shadow:0 14px 44px rgba(0,0,0,.6)}
+  #presetBar input{background:#202026;color:var(--text);border:1px solid #2b2b33;
+    border-radius:8px;padding:8px 11px;font-size:14px;width:176px;outline:none}
+  #presetBar input:focus{border-color:#4a4a55}
+  #presetBar .ok{background:var(--white);color:#0b0b0d;font-size:13px;font-weight:600;
+    padding:8px 15px;border-radius:8px}
+  #presetBar .no{color:var(--dim);font-size:13px;padding:8px 10px}
+
+  /* ── 曲线全屏面板 ─────────────────────────────────── */
+  #curvePanel{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  .cvHead{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;
+    border-bottom:1px solid #1d1d22}
+  .cvHead .done{font-size:14px;color:var(--white);padding:6px 0}
+  .cvHead .cvTitle{font-size:12px;color:var(--dim2);letter-spacing:1.2px}
+  .cvBody{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px}
+  .cvCh{display:flex;gap:8px}
+  .cvCh button{font-size:12.5px;color:var(--dim);padding:7px 14px;border:1px solid #2a2a31;border-radius:8px}
+  .cvCh button.on{color:var(--white);border-color:var(--white)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="btnOpen">打开</button>
+    <span id="status">就绪</span>
+    <div class="saveWrap">
+      <button id="expBtn" title="切换导出尺寸">1600</button>
+      <button id="btnSave" disabled>保存</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="gl"></canvas>
+    <div id="empty">
+      <h2>打开一张照片</h2>
+      <p>全部处理在这台设备本地完成<br>照片不会上传到任何服务器</p>
+      <div class="emptyBtns">
+        <button id="btnEmptyOpen">选择照片</button>
+        <button id="btnSample">看示例</button>
+      </div>
+    </div>
+    <div id="toolbar" class="hidden">
+      <button id="btnAuto" title="测量这张照片，自动给参数">智能</button>
+      <button id="btnHeal" title="自动找斑点并修复">祛痘</button>
+      <button id="btnWarp" title="哪里有意见就往哪拖">液化</button>
+      <button id="btnWarpClear" class="hidden" title="清掉手动液化的痕迹">清除</button>
+      <span class="sep"></span>
+      <button id="btnPreset">预设</button>
+      <button id="btnFilter">滤镜</button>
+    </div>
+    <div id="hint">按住画面可看原图</div>
+    <div id="busy">处理中…</div>
+  </main>
+
+  <footer>
+    <div class="groups">
+      <div class="group on" data-g="skin">肤质</div>
+      <div class="group" data-g="shape">五官</div>
+      <div class="group" data-g="tone">肤色</div>
+      <div class="group" data-g="color">调色</div>
+    </div>
+    <div class="panel" id="p-skin"><div class="pgrid" id="g-skin"></div></div>
+    <div class="panel hidden" id="p-shape"><div class="pgrid" id="g-shape"></div></div>
+    <div class="panel hidden" id="p-tone"><div class="pgrid" id="g-tone"></div></div>
+    <div class="panel hidden" id="p-color">
+      <div class="pgrid" id="g-color"></div>
+      <div class="sect">滤镜</div>
+      <div class="lutgrid" id="lutGrid"></div>
+    </div>
+  </footer>
+
+  <!-- 预设弹层 -->
+  <div id="presetSheet" class="sheet hidden">
+    <div class="sheetIn" id="presetList"></div>
+  </div>
+
+  <!-- 曲线全屏面板（编辑器下一步接） -->
+  <div id="curvePanel" class="hidden">
+    <div class="cvHead">
+      <button class="done" id="cvClose">完成</button>
+      <span class="cvTitle">曲线</span>
+      <span style="width:34px"></span>
+    </div>
+    <div class="cvBody">
+      <div class="soon">RGB 四条曲线正在做——下一版这里会出现可拖点的曲线编辑器。</div>
+    </div>
+  </div>
+
+  <div id="presetBar" class="hidden">
+    <input id="presetName" maxlength="16" placeholder="给这套参数起个名字">
+    <button class="ok" id="presetOk">存下</button>
+    <button class="no" id="presetCancel">取消</button>
+  </div>
+</div>
+
+<input type="file" id="file" accept="image/*" class="hidden">
+
+<script src="app.js"></script>
+</body>
+</html>
