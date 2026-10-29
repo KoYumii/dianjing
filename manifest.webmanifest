@@ -1,0 +1,25 @@
+{
+  "name": "点睛 · 修图",
+  "short_name": "点睛",
+  "description": "本地运行的真人修图：磨皮、美白、瘦脸、大眼、3D LUT 滤镜",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141416",
+  "theme_color": "#141416",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
